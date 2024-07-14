@@ -1,0 +1,946 @@
+ch - 1
+Structured Query Language, or SQL, is the programming language used with databases, and it is an important skill for any data scientist. In this course, you'll build your SQL skills using BigQuery, a web service that lets you apply SQL to huge datasets.
+
+To use BigQuery, we'll import the Python package below:
+	
+	from google.cloud import bigquery
+
+1.The first step in the workflow is to create a Client object. 
+As you'll soon see, this Client object will play a central role 
+in retrieving information from BigQuery datasets.
+	
+	# Create a "Client" object
+	client = bigquery.Client()
+	
+
+
+We'll work with a dataset of posts on Hacker News.
+In BigQuery, each dataset is contained in a corresponding project. In this case, our hacker_news dataset is contained in the bigquery-public-data project. To access the dataset,
+	i.We begin by constructing a reference to the dataset with the dataset() 	method.
+	
+	ii.Next, we use the get_dataset() method, along with the reference we just 		constructed, to fetch the dataset.
+
+# Construct a reference to the "hacker_news" dataset
+	dataset_ref = client.dataset("hacker_news", project="bigquery-public-data")
+
+# API request - fetch the dataset
+	dataset = client.get_dataset(dataset_ref)
+
+Every dataset is just a collection of tables.
+We use the list_tables() method to list the tables in the dataset
+
+# List all the tables in the "hacker_news" dataset
+	tables = list(client.list_tables(dataset))
+
+# Print names of all tables in the dataset (there are four!)
+	for table in tables:  
+    	       print(table.table_id)
+
+------------------------------------------------------------------------------------------
+
+Similar to how we fetched a dataset, we can fetch a table. In the code cell below, we fetch the full table in the hacker_news dataset.
+
+# Construct a reference to the "full" table
+	table_ref = dataset_ref.table("full")
+
+# API request - fetch the table
+	table = client.get_table(table_ref)
+
+
+//About_Schema:
+The structure of a table is called its schema.
+
+In this example, we'll investigate the full table that we fetched above.
+# Print information on all the columns in the "full" table in the "hacker_news" dataset
+	table.schema
+
+
+We can use the list_rows() method to check just the first five lines of of the full table to make sure this is right. (Sometimes databases have outdated descriptions, so it's good to check.) This returns a BigQuery RowIterator object that can quickly be converted to a pandas DataFrame with the to_dataframe() method.
+
+# Preview the first five lines of the "full" table
+	client.list_rows(table, max_results=5).to_dataframe()
+
+
+The list_rows() method will also let us look at just the information in a specific column. If we want to see the first five entries in the by column, for example, we can do that!
+
+# Preview the first five entries in the "by" column of the "full" table
+	client.list_rows(table, selected_fields=table.schema[:1], max_results=5).to_dataframe()
+
+
+chapter_Resource_Link:
+https://www.kaggle.com/code/dansbecker/getting-started-with-sql-and-bigquery
+
+
+****************************XXXXXX-XXXXXX******************************
+
+
+
+
+
+
+ch - 2
+1.For clarity, we'll work with a small imaginary dataset pet_records which contains just one table, called  [pets].
+		i.db = pet_records
+		i.table = pets
+
+2.For instance, to select the Name column (from the pets table in the pet_records database in the bigquery-public-data project),
+		"select name from bigquery-public-data"pet_records.pets"
+
+3.The query below returns the entries from the Name column that are in rows where the Animal column has the text 'Cat'.
+		"select name from bigquery-public-data"pet_records.pets
+		where animal = 'cat'  "
+
+-----------------------------------------------------------------------------------------------------------
+
+real data working through openAQ:
+1.First, we'll set up everything we need to run queries and take a quick peek at what tables are in our database.
+
+//------>setup_librery:
+from google.cloud import bigquery
+
+# Create a "Client" object
+client = bigquery.Client()
+
+# Construct a reference to the "openaq" dataset
+dataset_ref = client.dataset("openaq", project="bigquery-public-data")
+
+# API request - fetch the dataset
+dataset = client.get_dataset(dataset_ref)
+
+# List all the tables in the "openaq" dataset
+tables = list(client.list_tables(dataset))
+
+# Print names of all tables in the dataset (there's only one!)
+for table in tables:  
+    print(table.table_id)
+
+
+// Using Kaggle's public dataset BigQuery integration. global_air_quality
+The dataset contains only one table, called global_air_quality. We'll fetch the table and take a peek at the first few rows to see what sort of data it contains.
+
+	# Construct a reference to the "global_air_quality" table
+	table_ref = dataset_ref.table("global_air_quality")
+	
+	# API request - fetch the table
+	table = client.get_table(table_ref)
+	
+	# Preview the first five lines of the "global_air_quality" table
+	client.list_rows(table, max_results=5).to_dataframe()
+
+
+//---experiment:
+let's put together a query. Say we want to select all the values from the city column that are in rows where the country column is 'US' (for "United States").
+
+# Query to select all the items from the "city" column where the "country" column is 'US'
+	query = """
+        		SELECT city
+        		FROM `bigquery-public-data.openaq.global_air_quality`
+        		WHERE country = 'US'
+        		"""
+
+
+
+We're ready to use this query to get information from the OpenAQ dataset. As in the 
+1.previous tutorial, the first step is to create a Client object.
+# Create a "Client" object
+client = bigquery.Client()
+
+
+2.We begin by setting up the query with the query() method.
+# Set up the query
+query_job = client.query(query)
+
+
+3.Next, we run the query and convert the results to a pandas DataFrame.
+# API request - run the query, and return a pandas DataFrame
+us_cities = query_job.to_dataframe()
+
+
+4.Now we've got a pandas DataFrame called us_cities, which we can use like any other DataFrame.
+# What five cities have the most measurements?
+us_cities.city.value_counts().head()
+
+
+//If you want multiple columns, you can select them with a comma between the names:
+	query = """
+        		SELECT city, country
+        		FROM `bigquery-public-data.openaq.global_air_quality`
+        		WHERE country = 'US'
+        		"""
+You can select all columns with a * like this:
+	query = """
+       		 SELECT *
+        		FROM `bigquery-public-data.openaq.global_air_quality`
+        		WHERE country = 'US'
+        		"""
+
+
+
+//Note: Working with big datasets
+BigQuery datasets can be huge. We allow you to do a lot of computation for free, but everyone has some limit.
+
+To begin,you can estimate the size of any query before running it. Here is an example using the (very large!) Hacker News dataset. To see how much data a query will scan, we create a QueryJobConfig object and set the dry_run parameter to True.
+
+
+1.
+# Query to get the score column from every row where the type column has value "job"
+
+query = """
+        SELECT score, title
+        FROM `bigquery-public-data.hacker_news.full`
+        WHERE type = "job" 
+        """
+
+# Create a QueryJobConfig object to estimate size of query without running it
+dry_run_config = bigquery.QueryJobConfig(dry_run=True)
+
+# API request - dry run query to estimate costs
+dry_run_query_job = client.query(query, job_config=dry_run_config)
+
+print("This query will process {} bytes.".format(dry_run_query_job.total_bytes_processed))
+	
+output:This query will process 553320240 bytes.
+
+
+
+2.You can also specify a parameter when running the query to limit how much data you are willing to scan. 
+
+# Only run the query if it's less than 1 MB
+ONE_MB = 1000*1000
+safe_config = bigquery.QueryJobConfig(maximum_bytes_billed=ONE_MB)
+
+# Set up the query (will only run if it's less than 1 MB)
+safe_query_job = client.query(query, job_config=safe_config)
+
+# API request - try to run the query, and return a pandas DataFrame
+safe_query_job.to_dataframe()
+
+In the above case, the query was cancelled, because the limit of 1 MB was exceeded. However, we can increase the limit to run the query successfully!
+
+
+3.
+# Only run the query if it's less than 1 GB
+ONE_GB = 1000*1000*1000
+safe_config = bigquery.QueryJobConfig(maximum_bytes_billed=ONE_GB)
+
+# Set up the query (will only run if it's less than 1 GB)
+safe_query_job = client.query(query, job_config=safe_config)
+
+# API request - try to run the query, and return a pandas DataFrame
+job_post_scores = safe_query_job.to_dataframe()
+
+# Print average score for job posts
+job_post_scores.score.mean()
+
+
+chapter_Resource_Link:
+https://www.kaggle.com/code/dansbecker/select-from-where
+
+
+****************************XXXXXX-XXXXXX******************************
+
+
+
+
+ch -3
+you'll learn about three new techniques: GROUP BY, HAVING and COUNT(). Once again, we'll use this made-up table of information on pets.
+		i.db = pet_records
+		i.table = pets
+
+				id |      Name      | Animal
+				---------------------------------
+				1      dr.Haris B  	Rabbit
+				2      moon	dog
+				3      ripley	cat
+				4      tom		cat
+
+//coutnt():
+COUNT(), as you may have guessed from the name, returns a count of things. 
+If you pass it the name of a column, it will return the number of entries in that column.
+
+
+For instance, if we SELECT the COUNT() of the ID column in the pets table, it will return 4, because there are 4 ID's in the table.
+	query = """
+        		SELECT COUNT(ID)
+        		FROM `bigquery-public-data"pet_records.pets`
+        		"""
+COUNT() is an example of an aggregate function, which takes many values and returns one. (Other examples of aggregate functions include SUM(), AVG(), MIN(), and MAX().) 
+
+
+//group by:
+GROUP BY takes the name of one or more columns, and treats all rows with the same value in that column as a single group when you apply aggregate functions like COUNT().
+
+
+
+For example, say we want to know how many of each type of animal we have in the pets table. We can use GROUP BY to group together rows that have the same value in the Animal column, while using COUNT() to find out how many ID's we have in each group.
+		query = """
+        			SELECT Animal, COUNT(ID)
+        			FROM `bigquery-public-data"pet_records.pets`
+			GROUP BY Animal
+        			"""
+It returns a table with three rows (one for each distinct animal). We can see that the pets table contains 1 rabbit, 1 dog, and 2 cats.
+
+
+
+
+//GROUP BY ... HAVING
+HAVING is used in combination with GROUP BY to ignore groups that don't meet certain criteria.
+
+
+	So this query, for example, will only include groups that have more than one 	ID in them.
+	
+	query = """
+        		SELECT Animal, COUNT(ID)
+        		FROM `bigquery-public-data"pet_records.pets`
+		GROUP BY Animal
+		HAVING COUNT(ID) > 1        		
+		"""
+Since only one group meets the specified criterion, the query will return a table with only one row,
+				Animal | f0_
+				---------------------------------
+				Cat        2
+
+
+----------------------------------------------------------------------------------------------------------
+//Practical hands on in actual data:
+Example: Which Hacker News comments generated the most discussion?
+	Ready to see an example on a real dataset? The Hacker News dataset 	contains information on stories and comments from the Hacker News social 	networking site.
+
+We'll work with the full table and begin by printing the first few rows.
+
+//1st Step:
+
+from google.cloud import bigquery
+
+# Create a "Client" object
+client = bigquery.Client()
+
+# Construct a reference to the "hacker_news" dataset
+dataset_ref = client.dataset("hacker_news", project="bigquery-public-data")
+
+# API request - fetch the dataset
+dataset = client.get_dataset(dataset_ref)
+
+# Construct a reference to the "full" table
+table_ref = dataset_ref.table("full")
+
+# API request - fetch the table
+table = client.get_table(table_ref)
+
+# Preview the first five lines of the table
+client.list_rows(table, max_results=5).to_dataframe()
+
+//---->table's column"
+title | url  | text| dead | by |score |time |timestamp| type| id | parent| descendants |ranking |deleted
+
+
+
+Let's use the table to see which comments generated the most replies. Since:
+
+	the parent column indicates the comment that was replied to, and
+	the id column has the unique ID used to identify each comment,
+
+we can GROUP BY the parent column and COUNT() the id column in order to figure out the number of comments that were made as responses to a specific comment. (This might not make sense immediately -- take your time here to ensure that everything is clear!)
+
+Furthermore, since we're only interested in popular comments, we'll look at comments with more than ten replies. So, we'll only return groups HAVING more than ten ID's.
+
+
+	# Query to select comments that received more than 10 replies
+	query_popular = """
+               		 SELECT parent, COUNT(id)
+               	 	 FROM `bigquery-public-data.hacker_news.full`
+                		GROUP BY parent
+                		HAVING COUNT(id) > 10
+                		"""
+
+Now that our query is ready, let's run it and store the results in a pandas DataFrame:
+
+# Set up the query (cancel the query if it would use too much of 
+# your quota, with the limit set to 10 GB)
+safe_config = bigquery.QueryJobConfig(maximum_bytes_billed=10**10)
+query_job = client.query(query_popular, job_config=safe_config)
+
+# API request - run the query, and convert the results to a pandas DataFrame
+popular_comments = query_job.to_dataframe()
+
+# Print the first five rows of the DataFrame
+popular_comments.head()
+
+					   |      parents      | f0_
+					---------------------------------
+					0    29934192.0	175
+					1     3373702.0	75
+					2    24066748.0	45
+					3    31123102.0	42
+					4    9996333.0	754	
+	Each row in the popular_comments DataFrame corresponds to a comment 	that received more than ten replies. 
+	For instance, the comment with ID 801208 received 56 replies.	
+
+
+Note:
+If you are ever unsure what to put inside the COUNT() function, you can do COUNT(1) to count the rows in each group. 
+
+
+# Improved version of earlier query, now with aliasing & improved readability
+query_improved = """
+                 SELECT parent, COUNT(1) AS NumPosts
+                 FROM `bigquery-public-data.hacker_news.full`
+                 GROUP BY parent
+                 HAVING COUNT(1) > 10
+                 """
+
+safe_config = bigquery.QueryJobConfig(maximum_bytes_billed=10**10)
+query_job = client.query(query_improved, job_config=safe_config)
+
+# API request - run the query, and convert the results to a pandas DataFrame
+improved_df = query_job.to_dataframe()
+
+# Print the first five rows of the DataFrame
+improved_df.head()
+
+	   					parent	NumPosts
+					-----------------------------------------
+					0	24397272.0	87
+					1	28875764.0	43
+					2	30487933.0	40
+					3	27890790.0	96
+					4	19678914.0	48
+
+
+//Note on using GROUP BY
+
+Note that because it tells SQL how to apply aggregate functions (like COUNT()), it doesn't make sense to use GROUP BY without an aggregate function. 
+
+Similarly, if you have any GROUP BY clause, then all variables must be passed to either a,  -----> i.GROUP BY command, or   ii.an aggregation function.
+
+	
+//Good vs Bad query
+query_good = 	"""
+		SELECT parent, COUNT(id)
+             		FROM `bigquery-public-data.hacker_news.full`
+             		GROUP BY parent
+             		"""
+
+
+this query won't work, because the author column isn't passed to an aggregate function or a GROUP BY clause:
+
+query_bad = """
+	            SELECT `by` AS author, parent, COUNT(id)
+     	            FROM `bigquery-public-data.hacker_news.full`
+	  	GROUP BY parent
+            		"""
+If make this error, you'll get the error message SELECT list expression references column (column's name) which is neither grouped nor aggregated at.
+
+
+chapter_Resource_Link: 
+https://www.kaggle.com/code/dansbecker/group-by-having-count
+
+
+****************************XXXXXX-XXXXXX******************************
+
+ch - 4
+Now you'll learn how to change the order of your results using the ORDER BY clause, and you'll explore a popular use case by applying ordering to dates.
+
+				id |      Name      | Animal
+				---------------------------------
+				1      dr.Haris B  	Rabbit
+				4      tom		cat
+				2      moon	dog
+				3      ripley	cat
+				
+
+//order by:
+ORDER BY is usually the last clause in your query, and it sorts the results returned by the rest of your query.
+	
+	1.query = """
+        		SELECT Animal, COUNT(ID)
+        		FROM `bigquery-public-data"pet_records.pets`
+		ORDER BY ID
+		"""
+	
+	2.query = """
+        		SELECT Animal, COUNT(ID)
+        		FROM `bigquery-public-data"pet_records.pets`
+		ORDER BY Animal
+		"""
+
+	3.query = """
+        		SELECT Animal, COUNT(ID)
+        		FROM `bigquery-public-data"pet_records.pets`
+		ORDER BY DESC
+		"""
+
+
+//Dates:
+Next, we'll talk about dates, because they come up very frequently in real-world databases. There are two ways that dates can be stored in BigQuery: as a DATE or as a DATETIME.
+
+//Extract
+Often you'll want to look at part of a date, like the year or the day. You can do this with EXTRACT. We'll illustrate this with a slightly different table, called pets_with_date.
+
+				id |      Name      | Animal |  Date
+				-------------------------------------------------
+				1      dr.Haris B  	Rabbit    2019-04-18
+				4      tom		cat	2019-05-16
+				2      moon	dog	2019-01-07
+				3      ripley	cat	2019-02-23
+				
+
+The query below returns two columns, where column Day contains the day corresponding to each entry the Date column from the pets_with_date table
+	query = """
+        		SELECT Name, EXTRAT(DAY from Date) As Day
+        		FROM `bigquery-public-data"pet_records.pets_with_date`
+		"""
+
+ this query returns one column with just the week in the year (between 1 and 53) for each date in the Date column:
+	query = """
+        		SELECT Name, EXTRAT( WEEK from Date) As Week
+        		FROM `bigquery-public-data"pet_records.pets_with_date`
+		"""
+
+
+//Note:
+all the functions you can use with dates in BigQuery in this documentation under "Date and time functions".
+
+https://cloud.google.com/bigquery/docs/reference/legacy-sql#datetimefunctions
+https://cloud.google.com/bigquery/docs/reference/standard-sql/functions-and-operators
+
+------------------------------------------------------------------------------------------------------------
+
+//Practical hands on in actual data:
+Let's use the US Traffic Fatality Records database, which contains information on traffic accidents in the US where at least one person died.
+
+We'll investigate the accident_2015 table. Here is a view of the first few rows.
+
+
+//Step 1:
+
+from google.cloud import bigquery
+
+# Create a "Client" object
+client = bigquery.Client()
+
+# Construct a reference to the "nhtsa_traffic_fatalities" dataset
+dataset_ref = client.dataset("nhtsa_traffic_fatalities", project="bigquery-public-data")
+
+# API request - fetch the dataset
+dataset = client.get_dataset(dataset_ref)
+
+# Construct a reference to the "accident_2015" table
+table_ref = dataset_ref.table("accident_2015")
+
+# API request - fetch the table
+table = client.get_table(table_ref)
+
+# Preview the first five lines of the "accident_2015" table
+client.list_rows(table, max_results=5).to_dataframe()
+
+
+
+// step 2:
+
+# Query to find out the number of accidents for each day of the week
+query = """
+        SELECT COUNT(consecutive_number) AS num_accidents, 
+               EXTRACT(DAYOFWEEK FROM timestamp_of_crash) AS day_of_week
+        FROM `bigquery-public-data.nhtsa_traffic_fatalities.accident_2015`
+        GROUP BY day_of_week
+        ORDER BY num_accidents DESC
+        """
+
+//step 3:
+
+# Set up the query (cancel the query if it would use too much of 
+# your quota, with the limit set to 1 GB)
+safe_config = bigquery.QueryJobConfig(maximum_bytes_billed=10**9)
+query_job = client.query(query, job_config=safe_config)
+
+# API request - run the query, and convert the results to a pandas DataFrame
+accidents_by_day = query_job.to_dataframe()
+
+# Print the DataFrame
+accidents_by_day
+				output:
+			num_accidents	day_of_week
+			0	5659	7
+			1	5298	1
+			2	4916	6
+			3	4460	5
+			4	4182	4
+			5	4038	2
+			6	3985	3
+	
+
+Notice that the data is sorted by the num_accidents column, where the days with more traffic accidents appear first.
+
+
+
+chapter_Resource_Link:
+https://www.kaggle.com/code/dansbecker/order-by
+
+
+****************************XXXXXX-XXXXXX******************************
+
+ch - 5
+You are about to learn how to use AS and WITH to tidy up your queries and make them easier to read.
+
+				id |      Name      | Animal  |  Years_Old    
+				--------------------------------------------------
+				1      dr.Haris B  	Rabbit	  4.5
+				2      moon	dog	  9.0
+				3      ripley	cat	  1.5
+				4      tom		cat   	  7.8
+
+
+//AS:
+You learned in an earlier tutorial how to use AS to rename the columns generated by your queries, which is also known as aliasing. This is similar to how Python uses as for aliasing when doing imports,
+	like import pandas as pd or import seaborn as sns.
+
+
+	query = """
+        		SELECT Animal, COUNT(ID) As Number
+        		FROM `bigquery-public-data"pet_records.pets`
+		Group By Animal
+		"""
+
+
+//Imporrant: With..AS (Also knon as CTE:common table expression)
+
+A common table expression (or CTE) is a temporary table that you return within your query. CTEs are helpful for splitting your queries into readable chunks, and you can write queries against them.
+
+
+For instance, you might want to use the pets table to ask questions about older animals in particular. So you can start by creating a CTE which only contains information about animals more than five years old like this
+	
+		query = """
+			WITH Seniors AS
+			(
+			  SELECT ID, Name
+			  FROM `bigquery-public-data"pet_records.pets`
+			  WHERE Years_Old > 5
+			)
+			"""  [Not complete Query]
+		
+		Up to this output :
+			id | Name
+			-------------- 
+			2     Moon
+			4     Tom
+
+
+We can finish the query by pulling the information that we want from the CTE. The complete query below first creates the CTE, and then returns all of the IDs from it.
+
+		query = """
+			WITH Seniors AS
+				(
+			  	SELECT ID, Name
+			  	FROM `bigquery-public-data"pet_records.pets`
+			  	WHERE Years_Old > 5
+				)
+			SELECT ID FROM Seniors
+			"""  
+		
+		Up to this output :
+			id 
+			---
+			2    
+			4     
+
+
+Also, it's important to note that CTEs only exist inside the query where you create them, and you can't reference them in later queries. So, any query that uses a CTE is always broken into two parts: 
+		(1) first, we create the CTE, and then 
+		(2) we write a query that uses the CTE.
+
+
+-----------------------------------------------------------------------------------------------------------
+//Practical hands on in actual data:
+
+We're going to use a CTE to find out how many Bitcoin transactions were made each day for the entire timespan of a bitcoin transaction dataset.
+
+We'll investigate the transactions table. 
+Here is a view of the first few rows.
+
+//1st step:
+# Construct a reference to the "crypto_bitcoin" dataset
+dataset_ref = client.dataset("crypto_bitcoin", project="bigquery-public-data")
+
+# API request - fetch the dataset
+dataset = client.get_dataset(dataset_ref)
+
+# Construct a reference to the "transactions" table
+table_ref = dataset_ref.table("transactions")
+
+# API request - fetch the table
+table = client.get_table(table_ref)
+
+# Preview the first five lines of the "transactions" table
+client.list_rows(table, max_results=5).to_dataframe()
+
+
+//step 2 and step 3 along:
+
+//----------->step 2
+# Query to select the number of transactions per date, sorted by date
+query_with_CTE = """ 
+                 WITH time AS 
+                 (
+                     SELECT DATE(block_timestamp) AS trans_date
+                     FROM `bigquery-public-data.crypto_bitcoin.transactions`
+                 )
+                 SELECT COUNT(1) AS transactions,
+                        trans_date
+                 FROM time
+                 GROUP BY trans_date
+                 ORDER BY trans_date
+                 """
+
+//----------->step 3
+# Set up the query (cancel the query if it would use too much of 
+# your quota, with the limit set to 10 GB)
+safe_config = bigquery.QueryJobConfig(maximum_bytes_billed=10**10)
+query_job = client.query(query_with_CTE, job_config=safe_config)
+
+# API request - run the query, and convert the results to a pandas DataFrame
+transactions_by_date = query_job.to_dataframe()
+
+# Print the first five rows
+transactions_by_date.head()
+
+			OUTPUT
+			transactions	trans_date
+		0		1	2009-01-03
+		1		14	2009-01-09
+		2		61	2009-01-10
+		3		93	2009-01-11
+		4		101	2009-01-12
+
+
+
+Since they're returned sorted, we can easily plot the raw results to show us the number of Bitcoin transactions per day over the whole timespan of this dataset.	
+	transactions_by_date.set_index('trans_date').plot()
+
+
+chapter_Resource_Link: 
+https://www.kaggle.com/code/dansbecker/as-with
+
+****************************XXXXXX-XXXXXX******************************
+
+ch - 6
+JOIN connects multiple tables in to one.
+
+We'll use our imaginary pets table, which has three columns:
+
+	ID - ID number for the pet
+	Name - name of the pet
+	Animal - type of animal
+
+We'll also add another table, called owners. This table also has three columns:
+	ID - ID number for the owner (different from the ID number for the pet)
+	Name - name of the owner
+	Pet_ID - ID number for the pet that belongs to the owner (which matches the 	ID number for the pet in the pets table)
+
+
+
+				Table:Owners
+				id |      Name      |		Pet_ID   
+				--------------------------------------------------
+				1      Aubrey Little  	1
+				2      Chett crawfish	3
+				3      jules spinner		4
+				4      magnus burnsides	2
+
+				
+				Table:Pet
+				id |      Name      | Animal
+				---------------------------------
+				1      dr.Haris B  	Rabbit
+				2      moon	dog
+				3      ripley	cat
+				4      tom		cat
+
+
+1.we match the ID column in the pets table to the Pet_ID column in the owners table.
+		i. Aubrey Little  = dr.Haris B  (Rabbit)
+		ii.Chett crawfish =  ripley (cat)
+		iii.jules spinner = tom (cat)
+		iv.magnus burnsides = moon (dog)
+
+
+//JOIN:
+we can write a query to create a table with just two columns: 
+the name of the pet and the name of the owner.
+
+	query = """
+		SELECT p.Name AS Pet_Name, o.Name AS Owner_Name
+		FROM `bigquery-public-data"pet_records.pets` AS p
+		INNER JOIN `bigquery-public-data"pet_records.owners` AS o
+			ON p.ID = O.pet_Id
+		"""
+
+
+					Pet_Name |  Owner_Name
+					--------------------------------------
+					dr.Haris B  	Aubrey Little
+					moon		magnus burnsides
+					ripley		Chett crawfish 
+					tom		jules spinner
+
+We combine information from both tables by matching rows where the ID column in the pets table matches the Pet_ID column in the owners table.
+
+Note:
+Introduction
+You have the tools to obtain data from a single table in whatever format you want it. But what if the data you want is spread across multiple tables?
+
+That's where JOIN comes in! JOIN is incredibly important in practical SQL workflows. So let's get started.
+
+Example
+We'll use our imaginary pets table, which has three columns:
+
+ID - ID number for the pet
+Name - name of the pet
+Animal - type of animal
+We'll also add another table, called owners. This table also has three columns:
+
+ID - ID number for the owner (different from the ID number for the pet)
+Name - name of the owner
+Pet_ID - ID number for the pet that belongs to the owner (which matches the ID number for the pet in the pets table)
+
+
+To get information that applies to a certain pet, we match the ID column in the pets table to the Pet_ID column in the owners table.
+
+
+
+For example,
+
+the pets table shows that Dr. Harris Bonkers is the pet with ID 1.
+The owners table shows that Aubrey Little is the owner of the pet with ID 1.
+Putting these two facts together, Dr. Harris Bonkers is owned by Aubrey Little.
+
+Fortunately, we don't have to do this by hand to figure out which owner goes with which pet. In the next section, you'll learn how to use JOIN to create a new table combining information from the pets and owners tables.
+
+JOIN
+Using JOIN, we can write a query to create a table with just two columns: the name of the pet and the name of the owner.
+
+
+
+We combine information from both tables by matching rows where the ID column in the pets table matches the Pet_ID column in the owners table.
+
+In the query, ON determines which column in each table to use to combine the tables. Notice that since the ID column exists in both tables, we have to clarify which one to use. We use p.ID to refer to the ID column from the pets table, and o.Pet_ID refers to the Pet_ID column from the owners table
+
+
+-----------------------------------------------------------------------------------------------------------
+
+//Practical hands on in actual data:
+For our example, we're going to look at how many different files have been released under each license.
+
+We'll work with two tables in the database. The first table is the licenses table, which provides the name of each GitHub repo (in the repo_name column) and its corresponding license. Here's a view of the first five rows.
+
+
+//Step 1:
+
+from google.cloud import bigquery
+
+# Create a "Client" object
+client = bigquery.Client()
+
+# Construct a reference to the "github_repos" dataset
+dataset_ref = client.dataset("github_repos", project="bigquery-public-data")
+
+# API request - fetch the dataset
+dataset = client.get_dataset(dataset_ref)
+
+# Construct a reference to the "licenses" table
+licenses_ref = dataset_ref.table("licenses")
+
+# API request - fetch the table
+licenses_table = client.get_table(licenses_ref)
+
+# Preview the first five lines of the "licenses" table
+client.list_rows(licenses_table, max_results=5).to_dataframe()
+
+
+
+
+The second table is the sample_files table, which provides, among other information, the GitHub repo that each file belongs to (in the repo_name column). The first several rows of this table are printed below.
+
+//Step 1:
+# Construct a reference to the "sample_files" table
+files_ref = dataset_ref.table("sample_files")
+
+# API request - fetch the table
+files_table = client.get_table(files_ref)
+
+# Preview the first five lines of the "sample_files" table
+client.list_rows(files_table, max_results=5).to_dataframe()
+
+
+
+//Step 2 and 3 combine:
+# Query to determine the number of files per license, sorted by number of files
+query = """
+        SELECT L.license, COUNT(1) AS number_of_files
+        FROM `bigquery-public-data.github_repos.sample_files` AS sf
+        INNER JOIN `bigquery-public-data.github_repos.licenses` AS L 
+            ON sf.repo_name = L.repo_name
+        GROUP BY L.license
+        ORDER BY number_of_files DESC
+        """
+
+# Set up the query (cancel the query if it would use too much of 
+# your quota, with the limit set to 10 GB)
+safe_config = bigquery.QueryJobConfig(maximum_bytes_billed=10**10)
+query_job = client.query(query, job_config=safe_config)
+
+# API request - run the query, and convert the results to a pandas DataFrame
+file_count_by_license = query_job.to_dataframe()
+
+
+Explain the query:
+	query = """
+        		SELECT L.license, COUNT(1) AS number_of_files
+        		FROM `bigquery-public-data.github_repos.sample_files` AS sf
+        		INNER JOIN `bigquery-public-data.github_repos.licenses` AS L 
+            			ON sf.repo_name = L.repo_name
+        		GROUP BY L.license
+        		ORDER BY number_of_files DESC
+        		"""
+
+	1.`bigquery-public-data.github_repos.sample_files` AS sf
+      	    INNER JOIN `bigquery-public-data.github_repos.licenses` AS L 
+            		ON sf.repo_name = L.repo_name
+	---------------------------------------------------------------------------------------
+	This specifies the sources of data and how to join them. We use ON to specify 	that we combine the tables by matching the values in the repo_name 	columns in the tables.
+
+	2.SELECT L.license, COUNT(1) AS number_of_files
+        	    FROM .... GROUP BY L.license
+	-----------------------------------------------------------------
+	GROUP BY breaks the data into a different group for each license, before we 	COUNT the number of rows in the sample_files table that corresponds to 	each license. (Remember that you can count the number of rows with 	COUNT(1).)
+
+	3.ORDER BY number_of_files DESC
+	---------------------------------------------
+	 sorts the results so that licenses with more files appear first.
+
+
+//Step 4:
+# Print the DataFrame
+file_count_by_license
+
+			OUTPUT:
+			license	number_of_files
+		0	mit	20560894
+		1	gpl-2.0	16608922
+		2	apache-2.0	7201141
+		3	gpl-3.0	5107676
+		4	bsd-3-clause	3465437
+		5	agpl-3.0	1372100
+		6	lgpl-2.1	799664
+		7	bsd-2-clause	692357
+		8	lgpl-3.0	582277
+		9	mpl-2.0	457000
+		10	cc0-1.0	449149
+		11	epl-1.0	322255
+		12	unlicense	208602
+		13	artistic-2.0	147391
+		14	isc	118332
+
+
+chapter_Resource_Link: 
+https://www.kaggle.com/code/dansbecker/joining-data
