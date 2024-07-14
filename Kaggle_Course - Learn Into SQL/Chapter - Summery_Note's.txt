@@ -1,5 +1,7 @@
 ch - 1
-Structured Query Language, or SQL, is the programming language used with databases, and it is an important skill for any data scientist. In this course, you'll build your SQL skills using BigQuery, a web service that lets you apply SQL to huge datasets.
+Structured Query Language, or SQL, is the programming language used with databases, 
+and it is an important skill for any data scientist. In this course, you'll build 
+your SQL skills using BigQuery, a web service that lets you apply SQL to huge datasets.
 
 To use BigQuery, we'll import the Python package below:
 	
@@ -15,10 +17,12 @@ in retrieving information from BigQuery datasets.
 
 
 We'll work with a dataset of posts on Hacker News.
-In BigQuery, each dataset is contained in a corresponding project. In this case, our hacker_news dataset is contained in the bigquery-public-data project. To access the dataset,
-	i.We begin by constructing a reference to the dataset with the dataset() 	method.
-	
-	ii.Next, we use the get_dataset() method, along with the reference we just 		constructed, to fetch the dataset.
+In BigQuery, each dataset is contained in a corresponding project. 
+In this case, our hacker_news dataset is contained in the bigquery-public-data project. 
+To access the dataset,
+
+	i.We begin by constructing a reference to the dataset with the dataset() method.
+	ii.Next, we use the get_dataset() method, along with the reference we just constructed, to fetch the dataset.
 
 # Construct a reference to the "hacker_news" dataset
 	dataset_ref = client.dataset("hacker_news", project="bigquery-public-data")
